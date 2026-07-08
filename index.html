@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Panjat Pinang Matematika</title>
+    
+    <!-- Fonts: Nunito for kid-friendly modern look -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;800;900&display=swap" rel="stylesheet">
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- React & ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    
+    <!-- Babel for JSX -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <style>
+        body {
+            font-family: 'Nunito', sans-serif;
+            background: linear-gradient(135deg, #ccfbf1 0%, #bae6fd 100%); /* Soft blue-green */
+            min-height: 100vh;
+            overflow: hidden; /* Prevent scrolling for app-like feel */
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.6);
+            backdrop-filter: blur(10px);
+            border: 2px solid rgba(255, 255, 255, 0.8);
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+        }
+
+        .btn-press {
+            transition: all 0.1s ease;
+        }
+        .btn-press:active {
+            transform: scale(0.95);
+        }
+
+        /* Bamboo Pole Pattern */
+        .pole {
+            background: linear-gradient(90deg, #22c55e 0%, #16a34a 50%, #15803d 100%);
+            position: relative;
+            box-shadow: inset -4px 0 10px rgba(0,0,0,0.3);
+            border-radius: 4px;
+        }
+        .pole::after {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-image: repeating-linear-gradient(
+                to bottom,
+                transparent,
+                transparent 40px,
+                rgba(0,0,0,0.15) 40px,
+                rgba(0,0,0,0.15) 44px
+            );
+        }
+
+        .climb-transition {
+            transition: bottom 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        /* Confetti Animation */
+        @keyframes fall {
+            0% { transform: translateY(-10vh) rotate(0deg); opacity: 1;}
+            100% { transform: translateY(110vh) rotate(360deg); opacity: 0;}
+        }
+        .confetti {
+            position: absolute;
+            width: 15px;
+            height: 15px;
+            background-color: #fca5a5;
+            animation: fall 3s linear infinite;
+        }
+
+        /* Keypad button */
+        .keypad-btn {
+            background: white;
+            border: 2px solid #e2e8f0;
+            border-radius: 20px;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+            color: #334155;
+            font-size: 1.5rem;
+            font-weight: 800;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            height: 60px;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+
+        // Constants
+        const TARGET_SCORE = 7;
+        const PRIZES = ['👕', '🎸', '🎁', '🎮', '🛹'];
+
+        // Helper: Generate Random Question based on logic
+        const generateQuestion = (operation, level) => {
+            let num1, num2, answer;
+            
+            const randomInt = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
+
+            if (operation === 'Tambah (➕)') {
+                if (level === 'Beginner') {
+                    num1 = randomInt(1, 9); num2 = randomInt(1, 9);
+                } else if (level === 'Amateur') {
+                    num1 = randomInt(10, 99); num2 = randomInt(1, 9);
+                    if (Math.random() > 0.5) [num1, num2] = [num2, num1]; // swap sometimes
+                } else {
+                    num1 = randomInt(10, 50); num2 = randomInt(10, 50);
+                }
+                answer = num1 + num2;
+            } 
+            else if (operation === 'Kurang (➖)') {
+                if (level === 'Beginner') {
+                    num1 = randomInt(5, 18); num2 = randomInt(1, 9);
+                } else if (level === 'Amateur') {
+                    num1 = randomInt(20, 99); num2 = randomInt(1, 19);
+                } else {
+                    num1 = randomInt(30, 99); num2 = randomInt(10, 50);
+                }
+                if (num1 < num2) [num1, num2] = [num2, num1];
+                answer = num1 - num2;
+            }
+            else if (operation === 'Kali (✖️)') {
+                if (level === 'Beginner') {
+                    num1 = randomInt(1, 9); num2 = randomInt(1, 5);
+                } else if (level === 'Amateur') {
+                    num1 = randomInt(2, 9); num2 = randomInt(6, 12);
+                } else {
+                    num1 = randomInt(5, 15); num2 = randomInt(5, 15);
+                }
+                answer = num1 * num2;
+            }
+            else if (operation === 'Bagi (➗)') {
+                // Generate inverse multiplication to ensure clean division
+                let divisor, quotient;
+                if (level === 'Beginner') {
+                    divisor = randomInt(1, 5); quotient = randomInt(1, 9);
+                } else if (level === 'Amateur') {
+                    divisor = randomInt(2, 9); quotient = randomInt(2, 12);
+                } else {
+                    divisor = randomInt(5, 15); quotient = randomInt(5, 15);
+                }
+                num1 = divisor * quotient;
+                num2 = divisor;
+                answer = quotient;
+            }
+
+            return { num1, num2, answer };
+        };
+
+        const Confetti = () => {
+            const colors = ['#fca5a5', '#6ee7b7', '#93c5fd', '#fcd34d', '#c4b5fd'];
+            const pieces = Array.from({ length: 50 }).map((_, i) => ({
+                id: i,
+                left: `${Math.random() * 100}vw`,
+                animationDuration: `${Math.random() * 2 + 2}s`,
+                animationDelay: `${Math.random() * 2}s`,
+                backgroundColor: colors[Math.floor(Math.random() * colors.length)]
+            }));
+
+            return (
+                <div className="fixed inset-0 pointer-events-none z-50">
+                    {pieces.map(p => (
+                        <div key={p.id} className="confetti" style={p}></div>
+                    ))}
+                </div>
+            );
+        };
+
+        // Simple SVG Character
+        const Climber = ({ color }) => (
+            <svg width="60" height="80" viewBox="0 0 60 80" className="drop-shadow-lg">
+                {/* Head */}
+                <circle cx="30" cy="15" r="12" fill="#fcd34d" />
+                {/* Body - Sportswear */}
+                <rect x="20" y="27" width="20" height="25" rx="5" fill={color} />
+                {/* Arms */}
+                <path d="M 20 30 Q 10 40 25 50" stroke="#fcd34d" strokeWidth="6" strokeLinecap="round" fill="none" />
+                <path d="M 40 30 Q 50 40 35 50" stroke="#fcd34d" strokeWidth="6" strokeLinecap="round" fill="none" />
+                {/* Legs */}
+                <path d="M 25 50 Q 20 70 25 80" stroke="#fcd34d" strokeWidth="6" strokeLinecap="round" fill="none" />
+                <path d="M 35 50 Q 40 70 35 80" stroke="#fcd34d" strokeWidth="6" strokeLinecap="round" fill="none" />
+                {/* Shorts */}
+                <path d="M 20 45 L 40 45 L 40 55 L 30 50 L 20 55 Z" fill="#334155" />
+            </svg>
+        );
+
+        const App = () => {
+            // Screens: 'home', 'level', 'game', 'end'
+            const [screen, setScreen] = useState('home');
+            const [operation, setOperation] = useState('');
+            const [level, setLevel] = useState('');
+            
+            // Game State
+            const [p1Score, setP1Score] = useState(0);
+            const [p2Score, setP2Score] = useState(0);
+            const [p1Input, setP1Input] = useState('');
+            const [p2Input, setP2Input] = useState('');
+            const [p1Question, setP1Question] = useState({num1:0, num2:0, answer:0});
+            const [p2Question, setP2Question] = useState({num1:0, num2:0, answer:0});
+            const [winner, setWinner] = useState('');
+
+            // Random prizes for this round
+            const [prizes, setPrizes] = useState([]);
+
+            const startGame = (selectedLevel) => {
+                setLevel(selectedLevel);
+                setP1Score(0);
+                setP2Score(0);
+                setP1Input('');
+                setP2Input('');
+                setWinner('');
+                setP1Question(generateQuestion(operation, selectedLevel));
+                setP2Question(generateQuestion(operation, selectedLevel));
+                
+                // Shuffle prizes
+                const shuffled = [...PRIZES].sort(() => 0.5 - Math.random());
+                setPrizes(shuffled.slice(0, 3));
+                
+                setScreen('game');
+            };
+
+            const goHome = () => {
+                setScreen('home');
+                setOperation('');
+                setLevel('');
+            };
+
+            // --- UI SCREENS ---
+            const renderHome = () => (
+                <div className="flex flex-col items-center justify-center min-h-screen p-4 text-center">
+                    <h1 className="text-5xl md:text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-teal-600 to-blue-600 drop-shadow-sm mb-2">
+                        Panjat Pinang<br/>Matematika
+                    </h1>
+                    <p className="text-xl md:text-2xl font-bold text-teal-800 mb-10">Pilih Jenis Operasi</p>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-2xl">
+                        {['Tambah (➕)', 'Kurang (➖)', 'Kali (✖️)', 'Bagi (➗)'].map(op => (
+                            <button key={op} 
+                                onClick={() => { setOperation(op); setScreen('level'); }}
+                                className="btn-press bg-gradient-to-r from-purple-400 to-purple-600 text-white rounded-[30px] p-6 text-3xl font-bold shadow-xl border-4 border-purple-300 hover:shadow-2xl flex items-center justify-center gap-4">
+                                {op}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+            );
+
+            const renderLevel = () => (
+                <div className="flex flex-col items-center justify-center min-h-screen p-4 text-center">
+                    <h1 className="text-5xl font-black text-teal-800 mb-2">Pilih Level Kesulitan</h1>
+                    <p className="text-xl font-bold text-teal-700 bg-white/50 px-6 py-2 rounded-full mb-10 inline-block shadow-sm">
+                        Mode: {operation}
+                    </p>
+
+                    <div className="flex flex-col gap-6 w-full max-w-md">
+                        <button onClick={() => startGame('Beginner')} className="btn-press bg-green-400 text-white rounded-[35px] p-6 text-2xl font-bold shadow-xl border-4 border-green-200">
+                            <div className="text-3xl mb-1">Beginner ⭐</div>
+                            <div className="text-lg font-semibold text-green-100">1 Digit vs 1 Digit</div>
+                        </button>
+                        <button onClick={() => startGame('Amateur')} className="btn-press bg-orange-400 text-white rounded-[35px] p-6 text-2xl font-bold shadow-xl border-4 border-orange-200">
+                            <div className="text-3xl mb-1">Amateur ⭐⭐</div>
+                            <div className="text-lg font-semibold text-orange-100">1 Digit vs 2 Digit (Mixed)</div>
+                        </button>
+                        <button onClick={() => startGame('Pro')} className="btn-press bg-red-400 text-white rounded-[35px] p-6 text-2xl font-bold shadow-xl border-4 border-red-200">
+                            <div className="text-3xl mb-1">Pro ⭐⭐⭐</div>
+                            <div className="text-lg font-semibold text-red-100">2 Digit vs 2 Digit</div>
+                        </button>
+                    </div>
+
+                    <button onClick={() => setScreen('home')} className="mt-10 btn-press bg-white text-slate-700 px-8 py-3 rounded-full font-bold shadow-md hover:bg-slate-50 flex items-center gap-2">
+                        ← Kembali
+                    </button>
+                </div>
+            );
+
+            // --- GAME PLAY LOGIC ---
+            const handleKeypad = (player, key) => {
+                if (winner) return;
+
+                const setInput = player === 1 ? setP1Input : setP2Input;
+                const input = player === 1 ? p1Input : p2Input;
+                const question = player === 1 ? p1Question : p2Question;
+                const setScore = player === 1 ? setP1Score : setP2Score;
+                const score = player === 1 ? p1Score : p2Score;
+                const setQuestion = player === 1 ? setP1Question : setP2Question;
+
+                if (key === 'C') {
+                    setInput('');
+                } else if (key === 'GO') {
+                    if (parseInt(input) === question.answer) {
+                        // Correct
+                        const newScore = score + 1;
+                        setScore(newScore);
+                        setInput('');
+                        if (newScore >= TARGET_SCORE) {
+                            setWinner(`Pemain ${player === 1 ? 'Kiri (Merah)' : 'Kanan (Biru)'}`);
+                            setTimeout(() => setScreen('end'), 1500);
+                        } else {
+                            setQuestion(generateQuestion(operation, level));
+                        }
+                    } else {
+                        // Wrong - just clear for now (can add shake effect later)
+                        setInput('');
+                    }
+                } else {
+                    // Add digit (limit length to 4)
+                    if (input.length < 4) {
+                        setInput(input + key);
+                    }
+                }
+            };
+
+            const getOpSymbol = () => {
+                if (operation.includes('➕')) return '+';
+                if (operation.includes('➖')) return '-';
+                if (operation.includes('✖️')) return 'x';
+                if (operation.includes('➗')) return '÷';
+                return '?';
+            };
+
+            const renderKeypad = (player) => (
+                <div className="grid grid-cols-3 gap-2 mt-4 w-full max-w-[250px] mx-auto">
+                    {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(num => (
+                        <button key={num} onClick={() => handleKeypad(player, num)} className="btn-press keypad-btn hover:bg-slate-50">
+                            {num}
+                        </button>
+                    ))}
+                    <button onClick={() => handleKeypad(player, 'C')} className="btn-press keypad-btn bg-red-100 border-red-200 text-red-600 hover:bg-red-200">
+                        C
+                    </button>
+                    <button onClick={() => handleKeypad(player, 0)} className="btn-press keypad-btn hover:bg-slate-50">
+                        0
+                    </button>
+                    <button onClick={() => handleKeypad(player, 'GO')} className="btn-press keypad-btn bg-blue-500 border-blue-600 text-white hover:bg-blue-600">
+                        GO
+                    </button>
+                </div>
+            );
+
+            const renderGame = () => (
+                <div className="flex flex-col h-screen w-full relative">
+                    
+                    {/* Header bar */}
+                    <div className="h-[60px] bg-white/40 flex items-center justify-center shadow-sm z-10 shrink-0">
+                        <p className="text-slate-700 font-bold px-4 text-center text-sm md:text-base">
+                            Tantangan Panjat Pinang! Jawab {TARGET_SCORE} soal dengan benar untuk mencapai puncak!
+                        </p>
+                    </div>
+
+                    {/* Main Game Area */}
+                    <div className="flex-1 flex flex-row overflow-hidden relative">
+                        
+                        {/* Player 1 (Left) Area */}
+                        <div className="flex-1 flex flex-col justify-end p-2 sm:p-6 items-center z-10">
+                            <div className="glass-panel p-4 rounded-[30px] w-full max-w-sm flex flex-col items-center">
+                                <div className="text-xl font-extrabold text-red-500 mb-2">Benar: {p1Score}/{TARGET_SCORE}</div>
+                                <div className="text-3xl sm:text-5xl font-black text-slate-800 mb-4 whitespace-nowrap">
+                                    {p1Question.num1} {getOpSymbol()} {p1Question.num2} = ?
+                                </div>
+                                <div className="w-full bg-white border-4 border-slate-200 h-16 rounded-2xl flex items-center justify-center text-4xl font-bold text-slate-700 shadow-inner">
+                                    {p1Input || <span className="text-slate-300">...</span>}
+                                </div>
+                                {renderKeypad(1)}
+                            </div>
+                        </div>
+
+                        {/* Center Poles Arena */}
+                        <div className="w-[150px] sm:w-[250px] relative flex justify-center h-full pb-10">
+                            
+                            {/* Top Ring & Prizes */}
+                            <div className="absolute top-[5%] w-[120px] sm:w-[200px] h-[30px] border-4 border-yellow-700 rounded-[50%] z-0" 
+                                 style={{ transform: 'rotateX(70deg)' }}></div>
+                            
+                            {/* Indonesian Flag */}
+                            <div className="absolute top-[2%] left-1/2 ml-[-5px] z-20">
+                                <div className="w-[2px] h-[40px] bg-gray-400"></div>
+                                <div className="absolute top-0 left-[2px] w-[30px] h-[12px] bg-red-600"></div>
+                                <div className="absolute top-[12px] left-[2px] w-[30px] h-[12px] bg-white shadow-sm"></div>
+                            </div>
+
+                            {/* Prizes hanging */}
+                            <div className="absolute top-[7%] flex justify-between w-[120px] sm:w-[180px] z-20 text-3xl">
+                                <span className="drop-shadow-lg transform -rotate-12">{prizes[0]}</span>
+                                <span className="drop-shadow-lg translate-y-4">{prizes[1]}</span>
+                                <span className="drop-shadow-lg transform rotate-12">{prizes[2]}</span>
+                            </div>
+
+                            {/* The Poles */}
+                            <div className="flex justify-between w-[80px] sm:w-[120px] h-[90%] mt-[10%] relative z-10">
+                                {/* Pole 1 */}
+                                <div className="w-[25px] sm:w-[35px] h-full pole relative">
+                                    {/* Player 1 Climber */}
+                                    <div className="absolute left-[-20px] sm:left-[-10px] climb-transition"
+                                         style={{ bottom: `${(p1Score / TARGET_SCORE) * 85}%` }}>
+                                        <Climber color="#ef4444" /> {/* Red shirt */}
+                                    </div>
+                                </div>
+                                {/* Pole 2 */}
+                                <div className="w-[25px] sm:w-[35px] h-full pole relative">
+                                     {/* Player 2 Climber */}
+                                     <div className="absolute left-[-5px] sm:left-[-10px] climb-transition"
+                                         style={{ bottom: `${(p2Score / TARGET_SCORE) * 85}%` }}>
+                                        <Climber color="#3b82f6" /> {/* Blue shirt */}
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Ground */}
+                            <div className="absolute bottom-0 w-[300px] h-[50px] bg-emerald-700 rounded-[100%] opacity-50 z-0"
+                                 style={{ filter: 'blur(5px)' }}></div>
+                        </div>
+
+                        {/* Player 2 (Right) Area */}
+                        <div className="flex-1 flex flex-col justify-end p-2 sm:p-6 items-center z-10">
+                            <div className="glass-panel p-4 rounded-[30px] w-full max-w-sm flex flex-col items-center">
+                                <div className="text-xl font-extrabold text-blue-500 mb-2">Benar: {p2Score}/{TARGET_SCORE}</div>
+                                <div className="text-3xl sm:text-5xl font-black text-slate-800 mb-4 whitespace-nowrap">
+                                    {p2Question.num1} {getOpSymbol()} {p2Question.num2} = ?
+                                </div>
+                                <div className="w-full bg-white border-4 border-slate-200 h-16 rounded-2xl flex items-center justify-center text-4xl font-bold text-slate-700 shadow-inner">
+                                    {p2Input || <span className="text-slate-300">...</span>}
+                                </div>
+                                {renderKeypad(2)}
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+            );
+
+            const renderEnd = () => (
+                <div className="flex flex-col items-center justify-center min-h-screen p-4 text-center relative">
+                    <Confetti />
+                    <div className="glass-panel p-10 rounded-[40px] z-10 max-w-lg w-full">
+                        <div className="text-6xl mb-6">🏆</div>
+                        <h1 className="text-4xl font-black text-slate-800 mb-2">Permainan Selesai!</h1>
+                        <p className="text-2xl font-bold text-teal-600 mb-8">
+                            Pemenang: <span className="text-3xl text-purple-600 block mt-2">{winner}</span>
+                        </p>
+                        
+                        <div className="flex flex-col gap-4">
+                            <button onClick={() => startGame(level)} className="btn-press bg-blue-500 text-white rounded-full p-4 text-xl font-bold shadow-lg hover:bg-blue-600">
+                                🔄 Main Lagi
+                            </button>
+                            <button onClick={goHome} className="btn-press bg-white text-slate-700 rounded-full p-4 text-xl font-bold shadow-md hover:bg-slate-50 border-2 border-slate-200">
+                                🏠 Kembali ke Menu
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            );
+
+            return (
+                <div className="w-full h-full">
+                    {screen === 'home' && renderHome()}
+                    {screen === 'level' && renderLevel()}
+                    {screen === 'game' && renderGame()}
+                    {screen === 'end' && renderEnd()}
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
